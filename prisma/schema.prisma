@@ -14,14 +14,15 @@ datasource db {
 // layer, not the database layer.
 
 model Landlord {
-  id         String           @id @default(cuid())
+  id         String            @id @default(cuid())
   name       String
-  email      String           @default("")
-  phone      String           @default("")
+  email      String            @default("")
+  phone      String            @default("")
+  address    String            @default("")
   properties Property[]
   users      User[]
   requests   PropertyRequest[]
-  createdAt  DateTime         @default(now())
+  createdAt  DateTime          @default(now())
 }
 
 model User {
@@ -105,6 +106,30 @@ model PropertyRequest {
   createdAt              DateTime  @default(now())
 
   @@index([landlordId])
+  @@index([status])
+}
+
+// A public self-signup submission from a prospective landlord, awaiting
+// staff review. Nothing in `properties` becomes a real Landlord/User/
+// Property/Unit row until a staff member approves it — see the PATCH handler
+// in /api/signup-requests/[id] for what gets created.
+model SignupRequest {
+  id           String    @id @default(cuid())
+  name         String
+  email        String
+  passwordHash String
+  phone        String    @default("")
+  address      String    @default("")
+  // "full_service" | "record_only" — see AutonomyLevelKey in constants.ts.
+  planKey      String
+  // Json array of { address, unit, units: [{ label, tenantName, tenantPhone, tenantEmail }] }
+  // drafted during signup; materialized into real Property/Unit rows on approval.
+  properties   Json
+  status       String    @default("pending") // "pending" | "approved" | "denied"
+  reviewNote   String    @default("")
+  reviewedAt   DateTime?
+  createdAt    DateTime  @default(now())
+
   @@index([status])
 }
 

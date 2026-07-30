@@ -16,8 +16,8 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const body = await req.json();
 
-  if (!body.propertyId || !body.description) {
-    return NextResponse.json({ error: "Property and description are required." }, { status: 400 });
+  if (!body.propertyId || !body.tenant || !String(body.tenant).trim() || !body.description) {
+    return NextResponse.json({ error: "Property, tenant name, and description are required." }, { status: 400 });
   }
 
   const property = await prisma.property.findUnique({ where: { id: String(body.propertyId) } });

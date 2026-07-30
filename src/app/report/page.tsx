@@ -26,7 +26,7 @@ export default function ReportPage() {
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!draft.propertyId || !draft.description.trim()) return;
+    if (!draft.propertyId || !draft.tenant.trim() || !draft.description.trim()) return;
     setError("");
     const res = await fetch("/api/issues", {
       method: "POST",
@@ -76,7 +76,7 @@ export default function ReportPage() {
         </div>
         <div className="mb-3">
           <label className="block text-xs font-medium text-stone-500 mb-1">Your name</label>
-          <input value={draft.tenant} onChange={(e) => setDraft({ ...draft, tenant: e.target.value })} placeholder="Optional" className="w-full border border-stone-300 rounded-lg px-3 py-2 text-sm" />
+          <input required value={draft.tenant} onChange={(e) => setDraft({ ...draft, tenant: e.target.value })} className="w-full border border-stone-300 rounded-lg px-3 py-2 text-sm" />
         </div>
         <div className="mb-3">
           <label className="block text-xs font-medium text-stone-500 mb-1">What's going on?</label>

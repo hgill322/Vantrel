@@ -49,6 +49,31 @@ export const AUTONOMY_META: Record<AutonomyLevelKey, { label: string; blurb: str
   },
 };
 
+export const PLAN_META: Record<AutonomyLevelKey, { name: string; tagline: string; priceLabel: string; features: string[] }> = {
+  record_only: {
+    name: "Self-Managed",
+    tagline: "Use Vantrel to organize tenant communication — you handle the repairs.",
+    priceLabel: "Contact us for pricing",
+    features: [
+      "Tenant-reported issues land directly on your dashboard",
+      "You handle booking and coordinating the repair yourself",
+      "Mark issues resolved once complete — the tenant confirms before it's closed",
+      "Full history log of every service call on record",
+    ],
+  },
+  full_service: {
+    name: "Full Service",
+    tagline: "Vantrel handles the entire repair, start to finish.",
+    priceLabel: "Contact us for pricing",
+    features: [
+      "We select and coordinate the contractor for every repair",
+      "You receive an invoice for each completed repair",
+      "We mark it complete once the tenant confirms — full record kept",
+      "Zero coordination work on your end",
+    ],
+  },
+};
+
 export type RequestTypeKey = "add_property" | "remove_property" | "change_autonomy";
 
 export const REQUEST_TYPE_META: Record<RequestTypeKey, { label: string }> = {

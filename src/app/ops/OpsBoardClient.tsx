@@ -46,7 +46,7 @@ export default function OpsBoardClient({ initialIssues, properties }: { initialI
 
   async function submitIntake(e: React.FormEvent) {
     e.preventDefault();
-    if (!draft.propertyId || !draft.description.trim()) return;
+    if (!draft.propertyId || !draft.tenant.trim() || !draft.description.trim()) return;
     setError("");
     const res = await fetch("/api/issues", {
       method: "POST",
@@ -211,7 +211,7 @@ function IntakeModal({ draft, setDraft, properties, onSubmit, onClose }: { draft
         </div>
         <div className="mb-3">
           <FieldLabel>Tenant name</FieldLabel>
-          <input value={draft.tenant} onChange={set("tenant")} placeholder="Optional" className="w-full border border-stone-300 rounded-lg px-3 py-2 text-sm" />
+          <input required value={draft.tenant} onChange={set("tenant")} className="w-full border border-stone-300 rounded-lg px-3 py-2 text-sm" />
         </div>
         <div className="grid grid-cols-2 gap-3 mb-3">
           <div>
