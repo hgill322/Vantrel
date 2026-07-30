@@ -1,0 +1,144 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  // Swap to "postgresql" for production and point DATABASE_URL at a real DB.
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// SQLite has no native enum type, so Status/Urgency/ContactMethod/ServiceType/
+// AutonomyLevel are plain strings here. The allowed values live in
+// src/lib/constants.ts (StatusKey, UrgencyKey, ContactMethodKey,
+// ServiceTypeKey, AutonomyLevelKey) and are enforced at the application
+// layer, not the database layer.
+
+model Landlord {
+  id         String           @id @default(cuid())
+  name       String
+  email      String           @default("")
+  phone      String           @default("")
+  properties Property[]
+  users      User[]
+  requests   PropertyRequest[]
+  createdAt  DateTime         @default(now())
+}
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String
+  // "staff": full access to /ops and /landlord for every property.
+  // "landlord": /landlord only, scoped to their own landlordId's properties.
+  role         String
+  landlordId   String?
+  landlord     Landlord? @relation(fields: [landlordId], references: [id])
+  createdAt    DateTime  @default(now())
+
+  @@index([landlordId])
+}
+
+model Property {
+  id              String            @id @default(cuid())
+  landlordId      String
+  landlord        Landlord          @relation(fields: [landlordId], references: [id])
+  address         String
+  unit            String            @default("")
+  // "full_service": Vantrel has authority to select a contractor and book the
+  // service call directly. "record_only": Vantrel documents and organizes the
+  // issue but the landlord handles booking themselves. Defaults to the safer,
+  // more conservative option until a landlord explicitly opts into full_service.
+  // Landlords can't flip this directly — see PropertyRequest.
+  autonomyLevel   String            @default("record_only")
+  // Soft delete: archived properties are hidden from active lists (tenant
+  // intake, ops intake, landlord's default view) but stay in the database so
+  // their issue/service-request history doesn't break.
+  archived        Boolean           @default(false)
+  issues          Issue[]
+  serviceRequests ServiceRequest[]
+  units           Unit[]
+  requests        PropertyRequest[]
+  createdAt       DateTime          @default(now())
+
+  @@index([landlordId])
+}
+
+// A directory of individual rental units within a Property, each with the
+// current tenant's contact info. Separate from Property.unit (which is for a
+// landlord who owns a single unit within someone else's building) — this is
+// for a landlord who owns a whole building and wants a tenant roster.
+model Unit {
+  id          String   @id @default(cuid())
+  propertyId  String
+  property    Property @relation(fields: [propertyId], references: [id])
+  label       String
+  tenantName  String   @default("")
+  tenantPhone String   @default("")
+  tenantEmail String   @default("")
+  createdAt   DateTime @default(now())
+
+  @@index([propertyId])
+}
+
+// A landlord-initiated change that requires staff approval before it takes
+// effect: adding a property, removing (archiving) one, or changing its
+// autonomy level. Staff can still make these changes directly through the
+// Property/User-scoped endpoints; this model exists specifically for the
+// landlord-initiated path.
+model PropertyRequest {
+  id                     String    @id @default(cuid())
+  landlordId             String
+  landlord               Landlord  @relation(fields: [landlordId], references: [id])
+  type                   String // "add_property" | "remove_property" | "change_autonomy"
+  status                 String    @default("pending") // "pending" | "approved" | "denied"
+  // Used by "remove_property" and "change_autonomy" to point at the existing property.
+  propertyId             String?
+  property               Property? @relation(fields: [propertyId], references: [id])
+  // Used by "add_property".
+  address                String    @default("")
+  unit                   String    @default("")
+  // Used by "change_autonomy".
+  requestedAutonomyLevel String    @default("")
+  note                   String    @default("")
+  reviewNote             String    @default("")
+  reviewedAt             DateTime?
+  createdAt              DateTime  @default(now())
+
+  @@index([landlordId])
+  @@index([status])
+}
+
+model Issue {
+  id                String    @id @default(cuid())
+  propertyId        String
+  property          Property  @relation(fields: [propertyId], references: [id])
+  unit              String    @default("")
+  tenant            String    @default("")
+  contactMethod     String    @default("form")
+  description       String
+  urgency           String    @default("standard7")
+  status            String    @default("received")
+  contractor        String    @default("")
+  quoteCost         Float?
+  coordinationNotes String    @default("")
+  resolutionSummary String    @default("")
+  finalCost         Float?
+  loggedAt          DateTime  @default(now())
+  closedAt          DateTime?
+  updatedAt         DateTime  @updatedAt
+
+  @@index([status])
+  @@index([propertyId])
+}
+
+model ServiceRequest {
+  id          String   @id @default(cuid())
+  propertyId  String
+  property    Property @relation(fields: [propertyId], references: [id])
+  type        String
+  notes       String   @default("")
+  requestedAt DateTime @default(now())
+
+  @@index([propertyId])
+}
