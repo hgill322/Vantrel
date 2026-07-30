@@ -3,9 +3,8 @@ generator client {
 }
 
 datasource db {
-  // Swap to "postgresql" for production and point DATABASE_URL at a real DB.
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider = "postgresql"
+  url      = env("POSTGRES_URL")
 }
 
 // SQLite has no native enum type, so Status/Urgency/ContactMethod/ServiceType/
