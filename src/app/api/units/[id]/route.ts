@@ -6,6 +6,7 @@ async function authorize(session: Awaited<ReturnType<typeof getSession>>, unitId
   const unit = await prisma.unit.findUnique({ where: { id: unitId }, include: { property: true } });
   if (!unit) return { error: NextResponse.json({ error: "Unit not found." }, { status: 404 }) };
   if (!session) return { error: NextResponse.json({ error: "Unauthorized." }, { status: 401 }) };
+  if (session.role === "tenant") return { error: NextResponse.json({ error: "Forbidden." }, { status: 403 }) };
   if (session.role === "landlord" && unit.property.landlordId !== session.landlordId) {
     return { error: NextResponse.json({ error: "Forbidden." }, { status: 403 }) };
   }

@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useState } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 
 export default function LoginPage() {
@@ -34,7 +35,8 @@ function LoginForm() {
       setError(data.error || "Something went wrong.");
       return;
     }
-    router.push(params.get("next") || (data.role === "landlord" ? "/landlord" : "/ops"));
+    const home = data.role === "tenant" ? "/portal" : data.role === "landlord" ? "/landlord" : "/ops";
+    router.push(params.get("next") || home);
     router.refresh();
   }
 
@@ -66,6 +68,10 @@ function LoginForm() {
         >
           {loading ? "Signing in…" : "Sign in"}
         </button>
+        <p className="text-xs text-stone-400 mt-3 text-center">
+          Tenant with an invite code? <Link href="/tenant-signup" className="underline">Sign up</Link> ·{" "}
+          Landlord? <Link href="/signup" className="underline">Sign up</Link>
+        </p>
       </form>
     </main>
   );

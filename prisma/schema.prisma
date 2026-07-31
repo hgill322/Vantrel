@@ -31,12 +31,17 @@ model User {
   passwordHash String
   // "staff": full access to /ops and /landlord for every property.
   // "landlord": /landlord only, scoped to their own landlordId's properties.
+  // "tenant": /portal only, scoped to their own unitId. Created by claiming a
+  // Unit's invite code — never needs staff approval, unlike landlord signup.
   role         String
   landlordId   String?
   landlord     Landlord? @relation(fields: [landlordId], references: [id])
+  unitId       String?
+  unit         Unit?     @relation(fields: [unitId], references: [id])
   createdAt    DateTime  @default(now())
 
   @@index([landlordId])
+  @@index([unitId])
 }
 
 model Property {
@@ -76,6 +81,12 @@ model Unit {
   tenantName  String   @default("")
   tenantPhone String   @default("")
   tenantEmail String   @default("")
+  // Shared by whoever the landlord hands it to — doesn't get consumed on use,
+  // so roommates can each sign up with the same code. Regenerating overwrites
+  // it, immediately invalidating the old one.
+  inviteCode  String?  @unique
+  tenantUsers User[]
+  issues      Issue[]
   createdAt   DateTime @default(now())
 
   @@index([propertyId])
@@ -137,7 +148,13 @@ model Issue {
   id                String    @id @default(cuid())
   propertyId        String
   property          Property  @relation(fields: [propertyId], references: [id])
+  // Free-text unit label, still used when staff logs an issue on a tenant's
+  // behalf (phone/email) with no portal account involved.
   unit              String    @default("")
+  // Set when a logged-in tenant submits through /portal; null for anonymous
+  // or staff-logged issues that predate/skip the portal.
+  unitId            String?
+  unitRef           Unit?     @relation(fields: [unitId], references: [id])
   tenant            String    @default("")
   contactMethod     String    @default("form")
   description       String
@@ -154,6 +171,7 @@ model Issue {
 
   @@index([status])
   @@index([propertyId])
+  @@index([unitId])
 }
 
 model ServiceRequest {

@@ -12,12 +12,12 @@ export default async function RequestsPage() {
 
   const [requests, signupRequests, issues] = await Promise.all([
     prisma.propertyRequest.findMany({
-      include: { landlord: true, property: { include: { landlord: true, units: true } } },
+      include: { landlord: true, property: { include: { landlord: true, units: { include: { tenantUsers: { select: { id: true, email: true, createdAt: true } } } } } } },
       orderBy: { createdAt: "desc" },
     }),
     prisma.signupRequest.findMany({ orderBy: { createdAt: "desc" } }),
     prisma.issue.findMany({
-      include: { property: { include: { landlord: true, units: true } } },
+      include: { property: { include: { landlord: true, units: { include: { tenantUsers: { select: { id: true, email: true, createdAt: true } } } } } } },
       orderBy: { loggedAt: "desc" },
     }),
   ]);

@@ -4,7 +4,7 @@ import { getSession } from "@/lib/session";
 
 export async function GET() {
   const session = await getSession();
-  if (!session) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+  if (!session || session.role === "tenant") return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
 
   const requests = await prisma.serviceRequest.findMany({
     where: session.role === "landlord" ? { property: { landlordId: session.landlordId ?? "__none__" } } : {},
@@ -16,7 +16,7 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   const session = await getSession();
-  if (!session) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+  if (!session || session.role === "tenant") return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
 
   const body = await req.json();
 

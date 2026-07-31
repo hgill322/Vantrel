@@ -6,12 +6,13 @@
 const COOKIE_NAME = "vantrel_session";
 const MAX_AGE_SECONDS = 60 * 60 * 12; // 12 hours
 
-export type Role = "staff" | "landlord";
+export type Role = "staff" | "landlord" | "tenant";
 
 export interface SessionPayload {
   sub: string; // User.id
   role: Role;
   landlordId: string | null;
+  unitId: string | null;
 }
 
 function secret() {
@@ -57,7 +58,7 @@ function timingSafeEqualStr(a: string, b: string) {
   return mismatch === 0;
 }
 
-export async function createSessionToken(data: { sub: string; role: Role; landlordId: string | null }) {
+export async function createSessionToken(data: { sub: string; role: Role; landlordId: string | null; unitId: string | null }) {
   const payloadJson = JSON.stringify({ ...data, iat: Date.now() });
   const payloadHex = toHex(new TextEncoder().encode(payloadJson));
   const sig = await sign(payloadHex);
@@ -72,7 +73,7 @@ export async function verifySessionToken(token: string | undefined | null): Prom
   const expected = await sign(payloadHex);
   if (!timingSafeEqualStr(sig, expected)) return null;
 
-  let parsed: { sub: string; role: Role; landlordId: string | null; iat: number };
+  let parsed: { sub: string; role: Role; landlordId: string | null; unitId: string | null; iat: number };
   try {
     parsed = JSON.parse(new TextDecoder().decode(fromHex(payloadHex)));
   } catch {
@@ -82,7 +83,7 @@ export async function verifySessionToken(token: string | undefined | null): Prom
   const age = (Date.now() - Number(parsed.iat)) / 1000;
   if (!(age >= 0 && age < MAX_AGE_SECONDS)) return null;
 
-  return { sub: parsed.sub, role: parsed.role, landlordId: parsed.landlordId ?? null };
+  return { sub: parsed.sub, role: parsed.role, landlordId: parsed.landlordId ?? null, unitId: parsed.unitId ?? null };
 }
 
 export { COOKIE_NAME, MAX_AGE_SECONDS };

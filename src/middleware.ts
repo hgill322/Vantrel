@@ -1,7 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { COOKIE_NAME, verifySessionToken } from "@/lib/auth";
+import { COOKIE_NAME, verifySessionToken, type Role } from "@/lib/auth";
 
 const STAFF_ONLY_PREFIXES = ["/ops", "/requests"];
+const LANDLORD_PREFIXES = ["/landlord"];
+const TENANT_PREFIXES = ["/portal"];
+
+function homeFor(role: Role) {
+  if (role === "staff") return "/ops";
+  if (role === "landlord") return "/landlord";
+  return "/portal";
+}
 
 export async function middleware(req: NextRequest) {
   const token = req.cookies.get(COOKIE_NAME)?.value;
@@ -14,9 +22,15 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  if (STAFF_ONLY_PREFIXES.some((p) => req.nextUrl.pathname.startsWith(p)) && session.role !== "staff") {
+  const path = req.nextUrl.pathname;
+  const allowed =
+    (STAFF_ONLY_PREFIXES.some((p) => path.startsWith(p)) && session.role === "staff") ||
+    (LANDLORD_PREFIXES.some((p) => path.startsWith(p)) && (session.role === "staff" || session.role === "landlord")) ||
+    (TENANT_PREFIXES.some((p) => path.startsWith(p)) && session.role === "tenant");
+
+  if (!allowed) {
     const url = req.nextUrl.clone();
-    url.pathname = "/landlord";
+    url.pathname = homeFor(session.role);
     url.search = "";
     return NextResponse.redirect(url);
   }
@@ -25,5 +39,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/ops/:path*", "/landlord/:path*", "/requests/:path*"],
+  matcher: ["/ops/:path*", "/landlord/:path*", "/requests/:path*", "/portal/:path*"],
 };

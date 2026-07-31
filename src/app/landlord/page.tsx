@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 export default async function LandlordPage() {
   const session = await getSession();
-  if (!session) redirect("/login");
+  if (!session || session.role === "tenant") redirect("/login");
 
   // Staff see every property; landlords only see their own.
   const isLandlord = session.role === "landlord";
@@ -18,22 +18,22 @@ export default async function LandlordPage() {
   const [issues, requests, properties, propertyRequests] = await Promise.all([
     prisma.issue.findMany({
       where: { property: { ...propertyScope, archived: false } },
-      include: { property: { include: { landlord: true, units: true } } },
+      include: { property: { include: { landlord: true, units: { include: { tenantUsers: { select: { id: true, email: true, createdAt: true } } } } } } },
       orderBy: { loggedAt: "desc" },
     }),
     prisma.serviceRequest.findMany({
       where: { property: { ...propertyScope, archived: false } },
-      include: { property: { include: { landlord: true, units: true } } },
+      include: { property: { include: { landlord: true, units: { include: { tenantUsers: { select: { id: true, email: true, createdAt: true } } } } } } },
       orderBy: { requestedAt: "desc" },
     }),
     prisma.property.findMany({
       where: { ...propertyScope, archived: false },
-      include: { landlord: true, units: true },
+      include: { landlord: true, units: { include: { tenantUsers: { select: { id: true, email: true, createdAt: true } } } } },
       orderBy: { address: "asc" },
     }),
     prisma.propertyRequest.findMany({
       where: requestScope,
-      include: { landlord: true, property: { include: { landlord: true, units: true } } },
+      include: { landlord: true, property: { include: { landlord: true, units: { include: { tenantUsers: { select: { id: true, email: true, createdAt: true } } } } } } },
       orderBy: { createdAt: "desc" },
     }),
   ]);

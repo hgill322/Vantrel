@@ -54,12 +54,21 @@ export default function SignupClient({ initialPlan }: { initialPlan: AutonomyLev
 
   function validateStep(s: number): string {
     if (s === 0) {
-      if (!account.name.trim() || !account.email.trim() || !account.password) return "Name, email, and password are required.";
+      if (!account.name.trim() || !account.email.trim() || !account.phone.trim() || !account.address.trim() || !account.password) {
+        return "Name, email, phone, address, and password are all required.";
+      }
       if (account.password.length < 8) return "Password must be at least 8 characters.";
     }
     if (s === 1) {
       const withAddress = properties.filter((p) => p.address.trim());
       if (withAddress.length === 0) return "Add at least one property.";
+      for (const p of withAddress) {
+        for (const u of p.units) {
+          if (!u.label.trim() || !u.tenantName.trim() || !u.tenantPhone.trim() || !u.tenantEmail.trim()) {
+            return "Every unit you add needs a label, tenant name, phone, and email — or remove it if you don't have that yet.";
+          }
+        }
+      }
     }
     return "";
   }
@@ -186,11 +195,11 @@ function AccountStep({ account, setAccount }: { account: any; setAccount: (a: an
       </div>
       <div>
         <FieldLabel>Phone</FieldLabel>
-        <input value={account.phone} onChange={set("phone")} placeholder="Optional" className="w-full border border-stone-300 rounded-lg px-3 py-2 text-sm" />
+        <input required value={account.phone} onChange={set("phone")} className="w-full border border-stone-300 rounded-lg px-3 py-2 text-sm" />
       </div>
       <div>
         <FieldLabel>Your mailing address</FieldLabel>
-        <input value={account.address} onChange={set("address")} placeholder="Optional" className="w-full border border-stone-300 rounded-lg px-3 py-2 text-sm" />
+        <input required value={account.address} onChange={set("address")} className="w-full border border-stone-300 rounded-lg px-3 py-2 text-sm" />
       </div>
     </div>
   );
@@ -238,14 +247,14 @@ function PropertiesStep({
             />
           </div>
 
-          <div className="text-[11px] font-medium text-stone-400 mb-1.5">Units &amp; tenants (optional — add later if easier)</div>
+          <div className="text-[11px] font-medium text-stone-400 mb-1.5">Units &amp; tenants (skip entirely if you don't have this yet — but if you add one, every field is required)</div>
           <div className="space-y-1.5 mb-2">
             {p.units.map((u, unitIdx) => (
               <div key={unitIdx} className="grid grid-cols-5 gap-1.5 items-center">
-                <input value={u.label} onChange={(e) => onUpdateUnit(propIdx, unitIdx, { label: e.target.value })} placeholder="Unit" className="col-span-1 border border-stone-300 rounded-lg px-2 py-1.5 text-xs" />
-                <input value={u.tenantName} onChange={(e) => onUpdateUnit(propIdx, unitIdx, { tenantName: e.target.value })} placeholder="Tenant name" className="col-span-1 border border-stone-300 rounded-lg px-2 py-1.5 text-xs" />
-                <input value={u.tenantPhone} onChange={(e) => onUpdateUnit(propIdx, unitIdx, { tenantPhone: e.target.value })} placeholder="Phone" className="col-span-1 border border-stone-300 rounded-lg px-2 py-1.5 text-xs" />
-                <input value={u.tenantEmail} onChange={(e) => onUpdateUnit(propIdx, unitIdx, { tenantEmail: e.target.value })} placeholder="Email" className="col-span-1 border border-stone-300 rounded-lg px-2 py-1.5 text-xs" />
+                <input required value={u.label} onChange={(e) => onUpdateUnit(propIdx, unitIdx, { label: e.target.value })} placeholder="Unit" className="col-span-1 border border-stone-300 rounded-lg px-2 py-1.5 text-xs" />
+                <input required value={u.tenantName} onChange={(e) => onUpdateUnit(propIdx, unitIdx, { tenantName: e.target.value })} placeholder="Tenant name" className="col-span-1 border border-stone-300 rounded-lg px-2 py-1.5 text-xs" />
+                <input required value={u.tenantPhone} onChange={(e) => onUpdateUnit(propIdx, unitIdx, { tenantPhone: e.target.value })} placeholder="Phone" className="col-span-1 border border-stone-300 rounded-lg px-2 py-1.5 text-xs" />
+                <input required value={u.tenantEmail} onChange={(e) => onUpdateUnit(propIdx, unitIdx, { tenantEmail: e.target.value })} placeholder="Email" className="col-span-1 border border-stone-300 rounded-lg px-2 py-1.5 text-xs" />
                 <button onClick={() => onRemoveUnit(propIdx, unitIdx)} className="col-span-1 text-xs text-stone-400 hover:text-red-600">Remove</button>
               </div>
             ))}

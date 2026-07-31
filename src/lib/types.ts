@@ -1,6 +1,9 @@
-import type { Issue, Landlord, Property, PropertyRequest, ServiceRequest, SignupRequest, Unit } from "@prisma/client";
+import type { Issue, Landlord, Property, PropertyRequest, ServiceRequest, SignupRequest, Unit, User } from "@prisma/client";
 
-export type PropertyWithLandlord = Property & { landlord: Landlord; units: Unit[] };
+export type TenantUserSummary = Pick<User, "id" | "email" | "createdAt">;
+export type UnitWithTenants = Unit & { tenantUsers: TenantUserSummary[] };
+export type UnitWithProperty = Unit & { property: Property };
+export type PropertyWithLandlord = Property & { landlord: Landlord; units: UnitWithTenants[] };
 export type IssueWithProperty = Issue & { property: PropertyWithLandlord };
 export type ServiceRequestWithProperty = ServiceRequest & { property: PropertyWithLandlord };
 export type PropertyRequestWithRelations = PropertyRequest & {

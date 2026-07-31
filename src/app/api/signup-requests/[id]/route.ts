@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/session";
-import { SAFE_SELECT } from "../route";
+import { SAFE_SELECT } from "../shared";
 
 interface UnitDraft {
   label: string;

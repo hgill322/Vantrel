@@ -14,7 +14,7 @@ import {
   fmtDateTime,
   type AutonomyLevelKey,
 } from "@/lib/constants";
-import type { IssueWithProperty, PropertyWithLandlord, PropertyRequestWithRelations, ServiceRequestWithProperty, Unit } from "@/lib/types";
+import type { IssueWithProperty, PropertyWithLandlord, PropertyRequestWithRelations, ServiceRequestWithProperty, UnitWithTenants } from "@/lib/types";
 import type { Role } from "@/lib/auth";
 
 function emptyServiceDraft(properties: PropertyWithLandlord[]) {
@@ -190,6 +190,36 @@ export default function LandlordViewClient({
     setProperties(properties.map((p) => (p.id === propertyId ? { ...p, units: p.units.filter((u) => u.id !== unitId) } : p)));
   }
 
+  async function generateInviteCode(propertyId: string, unitId: string) {
+    const res = await fetch(`/api/units/${unitId}/invite-code`, { method: "POST" });
+    if (!res.ok) {
+      setError("Couldn't generate an invite code.");
+      return;
+    }
+    const { inviteCode } = await res.json();
+    setProperties(
+      properties.map((p) =>
+        p.id === propertyId ? { ...p, units: p.units.map((u) => (u.id === unitId ? { ...u, inviteCode } : u)) } : p
+      )
+    );
+  }
+
+  async function removeTenantAccess(propertyId: string, unitId: string, userId: string) {
+    if (!confirm("Remove this tenant's portal access? Their issue history stays on file.")) return;
+    const res = await fetch(`/api/tenant-users/${userId}`, { method: "DELETE" });
+    if (!res.ok) {
+      setError("Couldn't remove that tenant's access.");
+      return;
+    }
+    setProperties(
+      properties.map((p) =>
+        p.id === propertyId
+          ? { ...p, units: p.units.map((u) => (u.id === unitId ? { ...u, tenantUsers: u.tenantUsers.filter((t) => t.id !== userId) } : u)) }
+          : p
+      )
+    );
+  }
+
   const myPendingAddRequests = propertyRequests.filter((r) => r.type === "add_property" && r.status === "pending");
 
   return (
@@ -256,6 +286,8 @@ export default function LandlordViewClient({
               onRequestRemoval={requestRemoval}
               onAddUnit={addUnit}
               onRemoveUnit={removeUnit}
+              onGenerateInviteCode={generateInviteCode}
+              onRemoveTenantAccess={removeTenantAccess}
             />
           ))}
         </div>
@@ -411,6 +443,8 @@ function PropertyRow({
   onRequestRemoval,
   onAddUnit,
   onRemoveUnit,
+  onGenerateInviteCode,
+  onRemoveTenantAccess,
 }: {
   property: PropertyWithLandlord;
   role: Role;
@@ -422,6 +456,8 @@ function PropertyRow({
   onRequestRemoval: (propertyId: string) => void;
   onAddUnit: (propertyId: string, draft: ReturnType<typeof emptyUnitDraft>) => void;
   onRemoveUnit: (propertyId: string, unitId: string) => void;
+  onGenerateInviteCode: (propertyId: string, unitId: string) => void;
+  onRemoveTenantAccess: (propertyId: string, unitId: string, userId: string) => void;
 }) {
   const [showUnits, setShowUnits] = useState(false);
   const otherLevel: AutonomyLevelKey = property.autonomyLevel === "full_service" ? "record_only" : "full_service";
@@ -481,7 +517,15 @@ function PropertyRow({
           ))}
       </div>
 
-      {showUnits && <UnitsPanel property={property} onAdd={onAddUnit} onRemove={onRemoveUnit} />}
+      {showUnits && (
+        <UnitsPanel
+          property={property}
+          onAdd={onAddUnit}
+          onRemove={onRemoveUnit}
+          onGenerateInviteCode={onGenerateInviteCode}
+          onRemoveTenantAccess={onRemoveTenantAccess}
+        />
+      )}
     </div>
   );
 }
@@ -490,17 +534,21 @@ function UnitsPanel({
   property,
   onAdd,
   onRemove,
+  onGenerateInviteCode,
+  onRemoveTenantAccess,
 }: {
   property: PropertyWithLandlord;
   onAdd: (propertyId: string, draft: ReturnType<typeof emptyUnitDraft>) => void;
   onRemove: (propertyId: string, unitId: string) => void;
+  onGenerateInviteCode: (propertyId: string, unitId: string) => void;
+  onRemoveTenantAccess: (propertyId: string, unitId: string, userId: string) => void;
 }) {
   const [showAdd, setShowAdd] = useState(false);
   const [draft, setDraft] = useState(emptyUnitDraft());
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!draft.label.trim()) return;
+    if (!draft.label.trim() || !draft.tenantName.trim() || !draft.tenantPhone.trim() || !draft.tenantEmail.trim()) return;
     onAdd(property.id, draft);
     setDraft(emptyUnitDraft());
     setShowAdd(false);
@@ -510,16 +558,42 @@ function UnitsPanel({
     <div className="mt-3 border-t border-stone-100 pt-3">
       {property.units.length === 0 && !showAdd && <div className="text-xs text-stone-400 mb-2">No units on file.</div>}
       {property.units.length > 0 && (
-        <div className="space-y-1.5 mb-2">
-          {property.units.map((u: Unit) => (
-            <div key={u.id} className="flex items-center justify-between text-xs bg-stone-50 rounded-lg px-2.5 py-1.5">
-              <div>
-                <span className="font-medium text-stone-700">Unit {u.label}</span>
-                {u.tenantName && <span className="text-stone-500"> · {u.tenantName}</span>}
-                {u.tenantPhone && <span className="text-stone-400"> · {u.tenantPhone}</span>}
-                {u.tenantEmail && <span className="text-stone-400"> · {u.tenantEmail}</span>}
+        <div className="space-y-2 mb-2">
+          {property.units.map((u: UnitWithTenants) => (
+            <div key={u.id} className="bg-stone-50 rounded-lg px-2.5 py-2">
+              <div className="flex items-center justify-between text-xs">
+                <div>
+                  <span className="font-medium text-stone-700">Unit {u.label}</span>
+                  {u.tenantName && <span className="text-stone-500"> · {u.tenantName}</span>}
+                  {u.tenantPhone && <span className="text-stone-400"> · {u.tenantPhone}</span>}
+                  {u.tenantEmail && <span className="text-stone-400"> · {u.tenantEmail}</span>}
+                </div>
+                <button onClick={() => onRemove(property.id, u.id)} className="text-stone-400 hover:text-red-600">Remove</button>
               </div>
-              <button onClick={() => onRemove(property.id, u.id)} className="text-stone-400 hover:text-red-600">Remove</button>
+
+              <div className="mt-1.5 pt-1.5 border-t border-stone-200 flex items-center justify-between gap-2">
+                <div className="text-[11px] text-stone-500">
+                  {u.inviteCode ? (
+                    <>Invite code: <span className="font-mono font-medium text-stone-700">{u.inviteCode}</span></>
+                  ) : (
+                    <span className="text-stone-400">No invite code yet</span>
+                  )}
+                </div>
+                <button onClick={() => onGenerateInviteCode(property.id, u.id)} className="text-[11px] text-stone-500 hover:text-stone-800 underline shrink-0">
+                  {u.inviteCode ? "Regenerate" : "Generate code"}
+                </button>
+              </div>
+
+              {u.tenantUsers.length > 0 && (
+                <div className="mt-1.5 space-y-1">
+                  {u.tenantUsers.map((t) => (
+                    <div key={t.id} className="flex items-center justify-between text-[11px] text-stone-500">
+                      <span>Portal access: {t.email}</span>
+                      <button onClick={() => onRemoveTenantAccess(property.id, u.id, t.id)} className="text-stone-400 hover:text-red-600">Remove access</button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -527,9 +601,9 @@ function UnitsPanel({
       {showAdd ? (
         <form onSubmit={submit} className="grid grid-cols-2 gap-2 bg-stone-50 rounded-lg p-3">
           <input required value={draft.label} onChange={(e) => setDraft({ ...draft, label: e.target.value })} placeholder="Unit label (2B)" className="border border-stone-300 rounded-lg px-2 py-1.5 text-xs" />
-          <input value={draft.tenantName} onChange={(e) => setDraft({ ...draft, tenantName: e.target.value })} placeholder="Tenant name" className="border border-stone-300 rounded-lg px-2 py-1.5 text-xs" />
-          <input value={draft.tenantPhone} onChange={(e) => setDraft({ ...draft, tenantPhone: e.target.value })} placeholder="Phone" className="border border-stone-300 rounded-lg px-2 py-1.5 text-xs" />
-          <input value={draft.tenantEmail} onChange={(e) => setDraft({ ...draft, tenantEmail: e.target.value })} placeholder="Email" className="border border-stone-300 rounded-lg px-2 py-1.5 text-xs" />
+          <input required value={draft.tenantName} onChange={(e) => setDraft({ ...draft, tenantName: e.target.value })} placeholder="Tenant name" className="border border-stone-300 rounded-lg px-2 py-1.5 text-xs" />
+          <input required value={draft.tenantPhone} onChange={(e) => setDraft({ ...draft, tenantPhone: e.target.value })} placeholder="Phone" className="border border-stone-300 rounded-lg px-2 py-1.5 text-xs" />
+          <input required value={draft.tenantEmail} onChange={(e) => setDraft({ ...draft, tenantEmail: e.target.value })} placeholder="Email" className="border border-stone-300 rounded-lg px-2 py-1.5 text-xs" />
           <div className="col-span-2 flex gap-2">
             <button type="submit" className="flex-1 py-1.5 rounded-lg bg-slate-900 text-white text-xs">Add unit</button>
             <button type="button" onClick={() => setShowAdd(false)} className="flex-1 py-1.5 rounded-lg border border-stone-300 text-xs text-stone-600">Cancel</button>

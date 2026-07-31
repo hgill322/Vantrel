@@ -2,23 +2,9 @@ import bcrypt from "bcryptjs";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/session";
+import { SAFE_SELECT } from "./shared";
 
 const PLAN_KEYS = ["full_service", "record_only"];
-
-// Never return passwordHash to the client.
-export const SAFE_SELECT = {
-  id: true,
-  name: true,
-  email: true,
-  phone: true,
-  address: true,
-  planKey: true,
-  properties: true,
-  status: true,
-  reviewNote: true,
-  reviewedAt: true,
-  createdAt: true,
-} as const;
 
 interface UnitDraft {
   label: string;
@@ -52,8 +38,8 @@ export async function POST(req: NextRequest) {
   const planKey = String(body.planKey || "");
   const properties: PropertyDraft[] = Array.isArray(body.properties) ? body.properties : [];
 
-  if (!name || !email || !password) {
-    return NextResponse.json({ error: "Name, email, and password are required." }, { status: 400 });
+  if (!name || !email || !phone || !address || !password) {
+    return NextResponse.json({ error: "Name, email, phone, address, and password are all required." }, { status: 400 });
   }
   if (password.length < 8) {
     return NextResponse.json({ error: "Password must be at least 8 characters." }, { status: 400 });
@@ -66,19 +52,24 @@ export async function POST(req: NextRequest) {
       address: String(p.address || "").trim(),
       unit: String(p.unit || "").trim(),
       units: Array.isArray(p.units)
-        ? p.units
-            .map((u) => ({
-              label: String(u.label || "").trim(),
-              tenantName: String(u.tenantName || "").trim(),
-              tenantPhone: String(u.tenantPhone || "").trim(),
-              tenantEmail: String(u.tenantEmail || "").trim(),
-            }))
-            .filter((u) => u.label)
+        ? p.units.map((u) => ({
+            label: String(u.label || "").trim(),
+            tenantName: String(u.tenantName || "").trim(),
+            tenantPhone: String(u.tenantPhone || "").trim(),
+            tenantEmail: String(u.tenantEmail || "").trim(),
+          }))
         : [],
     }))
     .filter((p) => p.address);
   if (cleanProperties.length === 0) {
     return NextResponse.json({ error: "Add at least one property." }, { status: 400 });
+  }
+  for (const p of cleanProperties) {
+    for (const u of p.units) {
+      if (!u.label || !u.tenantName || !u.tenantPhone || !u.tenantEmail) {
+        return NextResponse.json({ error: "Every unit needs a label, tenant name, phone, and email, or remove it." }, { status: 400 });
+      }
+    }
   }
 
   const existingUser = await prisma.user.findUnique({ where: { email } });

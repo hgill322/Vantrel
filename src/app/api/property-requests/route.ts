@@ -7,7 +7,7 @@ const AUTONOMY_LEVELS = ["full_service", "record_only"];
 
 export async function GET() {
   const session = await getSession();
-  if (!session) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+  if (!session || session.role === "tenant") return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
 
   const requests = await prisma.propertyRequest.findMany({
     where: session.role === "landlord" ? { landlordId: session.landlordId ?? "__none__" } : {},
